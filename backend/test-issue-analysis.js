@@ -9,11 +9,6 @@ const testCases = [
     expected: "shopping-cart"
   },
   {
-    title: "Product detail page design",
-    description: "Create a page to show individual product information with image, price, and add to cart button",
-    expected: "product-detail"
-  },
-  {
     title: "Checkout flow improvement",
     description: "Users need a better checkout experience with shipping and payment information",
     expected: "checkout"

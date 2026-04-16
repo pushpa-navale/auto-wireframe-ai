@@ -21,13 +21,6 @@ const templates = {
     description: 'Grid layout showing multiple products with images, prices, and add to cart buttons',
     keywords: ['product', 'listing', 'grid', 'catalog', 'shop', 'store', 'category', 'products', 'items', 'browse']
   },
-  'product-detail': {
-    width: 800,
-    height: 600,
-    title: 'Product Detail',
-    description: 'Detailed product page with image, description, price, and purchase options',
-    keywords: ['product', 'detail', 'single', 'item', 'description', 'price', 'buy', 'purchase', 'specific']
-  },
   'shopping-cart': {
     width: 800,
     height: 600,
@@ -90,8 +83,6 @@ function analyzeIssue(issueTitle, issueDescription = '') {
       bestTemplate = 'user-profile';
     } else if (content.includes('buy') || content.includes('purchase') || content.includes('order')) {
       bestTemplate = 'checkout';
-    } else if (content.includes('view') || content.includes('see') || content.includes('display')) {
-      bestTemplate = 'product-detail';
     } else if (content.includes('list') || content.includes('show') || content.includes('display')) {
       bestTemplate = 'product-listing';
     }

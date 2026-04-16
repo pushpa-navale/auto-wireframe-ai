@@ -11,14 +11,6 @@ This directory contains SVG wireframe templates for common e-commerce website pa
 - Pagination controls
 - Responsive grid design
 
-### 2. Product Detail Page (`product-detail.svg`)
-- Breadcrumb navigation
-- Large product image area
-- Product information (title, price, rating, description)
-- Quantity selector and action buttons
-- Tabbed content (Details, Reviews, Shipping)
-- Related products section
-
 ### 3. Shopping Cart (`shopping-cart.svg`)
 - Cart items list with product images and details
 - Quantity controls and remove options
