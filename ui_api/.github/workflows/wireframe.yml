@@ -1,0 +1,30 @@
+name: Wireframe Generation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  generate-wireframe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install || true
+      - name: Run wireframe generation
+        run: |
+          cd backend
+          node generate-wireframe.js
