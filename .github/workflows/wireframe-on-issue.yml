@@ -27,16 +27,24 @@ jobs:
         run: |
           cd frontend-demo
           npm install || true
-      - name: Run wireframe generation
+      - name: Analyze issue and generate wireframe
         run: |
           cd backend
-          node generate-wireframe.js
+          # Escape special characters in issue title and description for shell
+          ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | sed 's/"/\\"/g')
+          ISSUE_DESC=$(echo "${{ github.event.issue.body }}" | sed 's/"/\\"/g' | head -c 500)
+          echo "Analyzing issue: $ISSUE_TITLE"
+          node generate-wireframe.js issueTitle="$ISSUE_TITLE" issueDescription="$ISSUE_DESC" issueNumber="${{ github.event.issue.number }}"
       - name: Commit and push wireframe
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add frontend-demo/public/wireframe.svg
-          git commit -m "Auto-generate wireframe for issue ${{ github.event.issue.number }}" || true
-          git push || echo "No changes to commit"
+          if [ -f frontend-demo/public/wireframe.svg ]; then
+            git add frontend-demo/public/wireframe.svg
+            git commit -m "🤖 Auto-generated wireframe for issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}" || true
+            git push
+          else
+            echo "No wireframe file was generated"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
