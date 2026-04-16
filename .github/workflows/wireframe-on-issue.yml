@@ -1,5 +1,8 @@
 name: Wireframe Generation on Issue
 
+permissions:
+  contents: write
+
 on:
   issues:
     types: [opened, edited]
@@ -10,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
