@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "target": "es2018",
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
