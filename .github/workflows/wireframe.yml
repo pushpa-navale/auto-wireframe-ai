@@ -28,3 +28,12 @@ jobs:
         run: |
           cd backend
           node generate-wireframe.js
+      - name: Commit and push wireframe
+        run: |
+          if [ -f frontend-demo/public/wireframe.svg ]; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add frontend-demo/public/wireframe.svg
+            git commit -m "Auto-generate wireframe [skip ci]" || true
+            git push
+          fi
