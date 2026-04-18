@@ -22,11 +22,11 @@ jobs:
 
       - name: Pull model
         run: |
-          ollama pull llama2
+          ollama pull llama3
 
       - name: Test run
         run: |
-          ollama run llama2 "Hello"
+          ollama run llama3 "Hello"
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
