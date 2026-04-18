@@ -11,6 +11,22 @@ jobs:
   generate-wireframe:
     runs-on: ubuntu-latest
     steps:
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama
+        run: |
+          ollama serve &
+          sleep 5
+
+      - name: Pull model
+        run: |
+          ollama pull llama2
+
+      - name: Test run
+        run: |
+          ollama run llama2 "Hello"
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
