@@ -1,6 +1,7 @@
-// Enhanced wireframe generation script with GitHub issue integration
+// Wireframe generation script with Ollama LLM integration (Free & Local)
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -12,95 +13,90 @@ args.forEach(arg => {
   }
 });
 
-// Template configurations for different e-commerce pages
-const templates = {
-  'product-listing': {
-    width: 800,
-    height: 600,
-    title: 'Product Listing',
-    description: 'Grid layout showing multiple products with images, prices, and add to cart buttons',
-    keywords: ['product', 'listing', 'grid', 'catalog', 'shop', 'store', 'category', 'products', 'items', 'browse']
-  },
-  'shopping-cart': {
-    width: 800,
-    height: 600,
-    title: 'Shopping Cart',
-    description: 'Cart summary with items, quantities, prices, and checkout button',
-    keywords: ['cart', 'shopping', 'basket', 'checkout', 'order', 'items', 'quantity', 'total', 'summary']
-  },
-  'checkout': {
-    width: 800,
-    height: 700,
-    title: 'Checkout',
-    description: 'Multi-step checkout with shipping, payment, and order summary',
-    keywords: ['checkout', 'payment', 'shipping', 'billing', 'address', 'order', 'purchase', 'buy', 'complete']
-  },
-  'user-profile': {
-    width: 800,
-    height: 600,
-    title: 'User Profile',
-    description: 'Account management page with personal info and preferences',
-    keywords: ['profile', 'account', 'user', 'settings', 'personal', 'information', 'preferences', 'login', 'register']
-  }
-};
+// Call Ollama API to generate wireframe SVG
+async function generateWireframeWithLLM(issueTitle, issueDescription = '', customizations = {}) {
+  const systemPrompt = `You are an expert UI/UX wireframe designer. Generate clean, professional SVG wireframes based on requirements.
 
-// Issue analysis function
-function analyzeIssue(issueTitle, issueDescription = '') {
-  const content = (issueTitle + ' ' + issueDescription).toLowerCase();
+Guidelines:
+- Generate valid SVG markup only
+- Use a professional color palette (#2c3e50, #3498db, #ecf0f1, #95a5a6)
+- Include headers, content areas, buttons, and forms as appropriate
+- Add proper spacing and typography
+- Make wireframes responsive and clear
+- Include placeholder text like "Header", "Content", "Button", etc.
+- Maintain aspect ratio based on specified dimensions
+- Return ONLY the SVG markup, no explanations or markdown`;
 
-  // Score each template based on keyword matches
-  const scores = {};
-  Object.keys(templates).forEach(templateName => {
-    const template = templates[templateName];
-    let score = 0;
+  const userPrompt = `Create an SVG wireframe for the following requirement:
+Title: ${issueTitle}
+${issueDescription ? `Description: ${issueDescription}` : ''}
+${customizations.width ? `Preferred Width: ${customizations.width}px` : 'Default Width: 800px'}
+${customizations.height ? `Preferred Height: ${customizations.height}px` : 'Default Height: 600px'}
+${customizations.theme ? `Theme: ${customizations.theme}` : 'Theme: light'}
 
-    template.keywords.forEach(keyword => {
-      // Count occurrences of each keyword
-      const regex = new RegExp(keyword, 'gi');
-      const matches = content.match(regex);
-      if (matches) {
-        score += matches.length;
+Return ONLY valid SVG markup:`;
+
+  return new Promise((resolve, reject) => {
+    const requestData = {
+      model: process.env.OLLAMA_MODEL || 'llama3.2', // Default to llama3.2, can be overridden
+      prompt: userPrompt,
+      system: systemPrompt,
+      stream: false,
+      options: {
+        temperature: 0.7,
+        top_p: 0.9,
+        num_predict: 2048
       }
+    };
+
+    const options = {
+      hostname: 'localhost',
+      port: 11434, // Default Ollama port
+      path: '/api/generate',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+
+    const req = http.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          if (res.statusCode !== 200) {
+            reject(new Error(`Ollama API Error (${res.statusCode}): ${data}`));
+            return;
+          }
+
+          const response = JSON.parse(data);
+          const svgContent = response.response;
+
+          // Validate SVG output
+          if (!svgContent || !svgContent.includes('<svg')) {
+            reject(new Error('Invalid SVG output from LLM. Response does not contain SVG markup.'));
+            return;
+          }
+
+          resolve(svgContent);
+        } catch (error) {
+          reject(new Error(`Failed to parse Ollama response: ${error.message}`));
+        }
+      });
     });
 
-    scores[templateName] = score;
+    req.on('error', (error) => {
+      reject(new Error(`Failed to connect to Ollama: ${error.message}. Make sure Ollama is running on localhost:11434`));
+    });
+
+    req.write(JSON.stringify(requestData));
+    req.end();
   });
-
-  // Find the template with the highest score
-  let bestTemplate = 'basic';
-  let highestScore = 0;
-
-  Object.keys(scores).forEach(templateName => {
-    if (scores[templateName] > highestScore) {
-      highestScore = scores[templateName];
-      bestTemplate = templateName;
-    }
-  });
-
-  // If no good matches, try to infer from common patterns
-  if (highestScore === 0) {
-    if (content.includes('login') || content.includes('sign') || content.includes('auth')) {
-      bestTemplate = 'user-profile';
-    } else if (content.includes('buy') || content.includes('purchase') || content.includes('order')) {
-      bestTemplate = 'checkout';
-    } else if (content.includes('list') || content.includes('show') || content.includes('display')) {
-      bestTemplate = 'product-listing';
-    }
-  }
-
-  return {
-    template: bestTemplate,
-    confidence: highestScore,
-    scores: scores
-  };
 }
-
-// Export functions for testing
-module.exports = {
-  analyzeIssue,
-  extractCustomizations,
-  templates
-};
 
 // Extract customizations from issue content
 function extractCustomizations(issueTitle, issueDescription = '') {
@@ -114,9 +110,9 @@ function extractCustomizations(issueTitle, issueDescription = '') {
     customizations.height = parseInt(dimensionMatch[2]);
   }
 
-  // Extract specific page types
+  // Extract specific page types and set dimensions
   if (content.includes('mobile') || content.includes('responsive')) {
-    customizations.width = 375; // Mobile width
+    customizations.width = 375;
     customizations.height = 667;
   }
 
@@ -130,47 +126,20 @@ function extractCustomizations(issueTitle, issueDescription = '') {
   return customizations;
 }
 
-function loadTemplate(templateName) {
-  const templatePath = path.join(__dirname, 'wireframe-templates', `${templateName}.svg`);
-  if (fs.existsSync(templatePath)) {
-    return fs.readFileSync(templatePath, 'utf8');
-  }
-  return null;
-}
+// Export functions for testing
+module.exports = {
+  generateWireframeWithLLM,
+  extractCustomizations
+};
 
-function customizeTemplate(templateSvg, customizations = {}) {
-  let svg = templateSvg;
 
-  // Apply customizations
-  if (customizations.title) {
-    // Replace title placeholders in the SVG
-    svg = svg.replace(/Product Name|Wireframe|E-Commerce Store/g, customizations.title);
-  }
-
-  if (customizations.width && customizations.height) {
-    // Update SVG dimensions
-    svg = svg.replace(/width="\d+"/, `width="${customizations.width}"`);
-    svg = svg.replace(/height="\d+"/, `height="${customizations.height}"`);
-  }
-
-  // Apply theme changes
-  if (customizations.theme === 'dark') {
-    // Convert light colors to dark theme
-    svg = svg.replace(/#ffffff/g, '#2c3e50'); // White to dark blue
-    svg = svg.replace(/#f8f9fa/g, '#34495e'); // Light gray to darker blue
-    svg = svg.replace(/#2c3e50/g, '#ffffff'); // Dark blue headers to white
-  }
-
-  return svg;
-}
-
-function generateWireframe(options = {}) {
+// Main async function to generate wireframe
+async function generateWireframe(options = {}) {
   const {
     template = 'basic',
-    width = 400,
-    height = 300,
+    width = 800,
+    height = 600,
     title = 'Wireframe',
-    style = 'basic',
     output = path.join(__dirname, '../frontend-demo/public/wireframe.svg'),
     customizations = {},
     issueTitle = '',
@@ -178,98 +147,68 @@ function generateWireframe(options = {}) {
     issueNumber = ''
   } = options;
 
-  let outputContent = '';
+  try {
+    console.log('Generating wireframe using Claude API...');
 
-  // If issue information is provided, analyze it
-  let selectedTemplate = template;
-  if (issueTitle) {
-    const analysis = analyzeIssue(issueTitle, issueDescription);
-    selectedTemplate = analysis.template;
-    console.log(`Issue analysis: Selected template '${selectedTemplate}' with confidence ${analysis.confidence}`);
-
-    // Extract additional customizations from issue
+    // Extract customizations from issue content
     const issueCustomizations = extractCustomizations(issueTitle, issueDescription);
-    Object.assign(customizations, issueCustomizations);
+    const finalCustomizations = {
+      ...customizations,
+      ...issueCustomizations,
+      width: width || issueCustomizations.width || 800,
+      height: height || issueCustomizations.height || 600
+    };
 
-    // Use issue title as wireframe title if no specific title provided
-    if (!customizations.title) {
-      customizations.title = issueTitle.length > 30 ? issueTitle.substring(0, 30) + '...' : issueTitle;
+    // Generate SVG using LLM
+    const svgContent = await generateWireframeWithLLM(
+      issueTitle || title,
+      issueDescription,
+      finalCustomizations
+    );
+
+    // Validate SVG output
+    if (!svgContent || !svgContent.includes('<svg')) {
+      throw new Error('Invalid SVG output from LLM. Response does not contain SVG markup.');
     }
-  }
 
-  // Check if using a template
-  if (templates[selectedTemplate]) {
-    const templateSvg = loadTemplate(selectedTemplate);
-    if (templateSvg) {
-      outputContent = customizeTemplate(templateSvg, {
-        ...customizations,
-        title: customizations.title || templates[selectedTemplate].title,
-        width: width || templates[selectedTemplate].width,
-        height: height || templates[selectedTemplate].height
-      });
-    } else {
-      console.log(`Template '${selectedTemplate}' not found, falling back to generated wireframe`);
-      style = 'components'; // Fallback
+    // Create directory if it doesn't exist
+    const outputDir = path.dirname(output);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
     }
-  }
 
-  // Generate from scratch if no template
-  if (!outputContent) {
-    if (style === 'basic') {
-      outputContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <rect x="20" y="20" width="${width-40}" height="${height-40}" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2" rx="8"/>
-        <text x="${width/2}" y="${height/2}" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#6c757d">${title}</text>
-      </svg>`;
-    } else if (style === 'components') {
-      outputContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <!-- Header -->
-        <rect x="0" y="0" width="${width}" height="60" fill="#2c3e50" stroke="#34495e" stroke-width="1"/>
-        <text x="20" y="35" font-family="Arial, sans-serif" font-size="20" fill="white">${title}</text>
+    // Write to file
+    fs.writeFileSync(output, svgContent);
 
-        <!-- Content Area -->
-        <rect x="20" y="80" width="${width-40}" height="${height-160}" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
-        <text x="${width/2}" y="${height/2}" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#6c757d">Content Area</text>
+    const finalTitle = issueTitle || title;
+    console.log(`✓ Wireframe generated at ${output}`);
+    console.log(`  Dimensions: ${finalCustomizations.width}x${finalCustomizations.height}`);
+    console.log(`  Title: ${finalTitle}`);
 
-        <!-- Button -->
-        <rect x="${width/2-60}" y="${height-70}" width="120" height="40" fill="#27ae60" stroke="#229954" stroke-width="1" rx="4"/>
-        <text x="${width/2}" y="${height-45}" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white">Action Button</text>
-      </svg>`;
+    if (issueNumber) {
+      console.log(`  Generated for GitHub issue #${issueNumber}`);
     }
-  }
 
-  // Create directory if it doesn't exist
-  const outputDir = path.dirname(output);
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  fs.writeFileSync(output, outputContent);
-
-  const finalTitle = customizations.title || title;
-  console.log(`Wireframe generated at ${output}`);
-  console.log(`Template: ${selectedTemplate}, Dimensions: ${width}x${height}, Title: ${finalTitle}`);
-
-  if (issueNumber) {
-    console.log(`Generated for GitHub issue #${issueNumber}`);
-  }
-
-  // List available templates if requested
-  if (params.list === 'templates') {
-    console.log('\nAvailable templates:');
-    Object.keys(templates).forEach(tmpl => {
-      console.log(`- ${tmpl}: ${templates[tmpl].description}`);
-    });
+    return {
+      success: true,
+      path: output,
+      dimensions: {
+        width: finalCustomizations.width,
+        height: finalCustomizations.height
+      }
+    };
+  } catch (error) {
+    console.error('Error generating wireframe:', error.message);
+    process.exit(1);
   }
 }
 
 // Use command line parameters or defaults
-const template = params.template || 'basic';
 const options = {
-  template,
-  width: parseInt(params.width) || (templates[template] ? templates[template].width : 400),
-  height: parseInt(params.height) || (templates[template] ? templates[template].height : 300),
-  title: params.title || (templates[template] ? templates[template].title : 'Wireframe'),
-  style: params.style || 'basic',
+  template: params.template || 'basic',
+  width: parseInt(params.width) || 800,
+  height: parseInt(params.height) || 600,
+  title: params.title || 'Wireframe',
   output: params.output || path.join(__dirname, '../frontend-demo/public/wireframe.svg'),
   customizations: params,
   issueTitle: params.issueTitle || '',
@@ -277,4 +216,7 @@ const options = {
   issueNumber: params.issueNumber || ''
 };
 
-generateWireframe(options);
+// Run if this is the main module
+if (require.main === module) {
+  generateWireframe(options);
+}
