@@ -38,7 +38,7 @@ Return ONLY valid SVG markup:`;
 
   return new Promise((resolve, reject) => {
     const requestData = {
-      model: process.env.OLLAMA_MODEL || 'llama3.2', // Default to llama3.2, can be overridden
+      model: process.env.OLLAMA_MODEL || 'llama3', // Default to llama3.2, can be overridden
       prompt: userPrompt,
       system: systemPrompt,
       stream: false,

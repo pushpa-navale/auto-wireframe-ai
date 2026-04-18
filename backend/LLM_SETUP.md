@@ -45,11 +45,11 @@ ollama serve
 
 ### 3. Download a Model
 
-Choose one of these models (we recommend `llama3.2` for best results):
+Choose one of these models (we recommend `llama3` for best results):
 
 ```bash
 # Best for wireframes (balanced quality/speed)
-ollama pull llama3.2
+ollama pull llama3
 
 # Alternative options:
 ollama pull llama3        # More capable but slower
@@ -65,7 +65,7 @@ ollama pull phi-3         # Microsoft's efficient model
 ollama list
 
 # Test the model
-ollama run llama3.2 "Hello"
+ollama run llama3 "Hello"
 ```
 
 ## Usage
@@ -122,7 +122,7 @@ console.log('Generated at:', result.path);
 
 | Model | Best For | Speed | Quality |
 |-------|----------|-------|---------|
-| `llama3.2` | General wireframes | Fast | Good |
+| `llama3` | General wireframes | Fast | Good |
 | `llama3` | Complex layouts | Medium | Excellent |
 | `codellama` | Technical UIs | Fast | Good |
 | `mistral` | Creative designs | Fast | Good |
@@ -140,7 +140,7 @@ console.log('Generated at:', result.path);
 - Some models work better than others for creative tasks
 
 ### "Model not found"
-- Pull the model first: `ollama pull llama3.2`
+- Pull the model first: `ollama pull llama3`
 - Check available models: `ollama list`
 
 ### Performance Issues
