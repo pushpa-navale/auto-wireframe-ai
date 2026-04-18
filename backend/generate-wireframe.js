@@ -13,8 +13,35 @@ args.forEach(arg => {
   }
 });
 
+// Select appropriate template based on issue content
+function selectTemplate(issueTitle, issueDescription = '') {
+  const content = (issueTitle + ' ' + issueDescription).toLowerCase();
+  const templatesDir = path.join(__dirname, 'wireframe-templates');
+
+  if (content.includes('product') && content.includes('list')) {
+    return path.join(templatesDir, 'product-listing.svg');
+  } else if (content.includes('cart') || content.includes('shopping')) {
+    return path.join(templatesDir, 'shopping-cart.svg');
+  } else if (content.includes('checkout') || content.includes('payment')) {
+    return path.join(templatesDir, 'checkout.svg');
+  } else if (content.includes('profile') || content.includes('account') || content.includes('user')) {
+    return path.join(templatesDir, 'user-profile.svg');
+  } else {
+    // Default to product listing if no match
+    return path.join(templatesDir, 'product-listing.svg');
+  }
+}
+
+// Load template SVG content
+function loadTemplate(templatePath) {
+  if (fs.existsSync(templatePath)) {
+    return fs.readFileSync(templatePath, 'utf8');
+  }
+  return null;
+}
+
 // Call Ollama API to generate wireframe SVG
-async function generateWireframeWithLLM(issueTitle, issueDescription = '', customizations = {}) {
+async function generateWireframeWithLLM(issueTitle, issueDescription = '', customizations = {}, templateSvg = null) {
   const systemPrompt = `You are an expert UI/UX wireframe designer. Generate clean, professional SVG wireframes based on requirements.
 
 Guidelines:
@@ -25,7 +52,7 @@ Guidelines:
 - Make wireframes responsive and clear
 - Include placeholder text like "Header", "Content", "Button", etc.
 - Maintain aspect ratio based on specified dimensions
-- Return ONLY the SVG markup, no explanations or markdown`;
+- Return ONLY the SVG markup, no explanations or markdown${templateSvg ? '\n- Use the provided template as a reference for layout and components' : ''}`;
 
   const userPrompt = `Create an SVG wireframe for the following requirement:
 Title: ${issueTitle}
@@ -33,6 +60,7 @@ ${issueDescription ? `Description: ${issueDescription}` : ''}
 ${customizations.width ? `Preferred Width: ${customizations.width}px` : 'Default Width: 800px'}
 ${customizations.height ? `Preferred Height: ${customizations.height}px` : 'Default Height: 600px'}
 ${customizations.theme ? `Theme: ${customizations.theme}` : 'Theme: light'}
+${templateSvg ? `\nReference Template:\n${templateSvg}` : ''}
 
 Return ONLY valid SVG markup:`;
 
@@ -129,7 +157,9 @@ function extractCustomizations(issueTitle, issueDescription = '') {
 // Export functions for testing
 module.exports = {
   generateWireframeWithLLM,
-  extractCustomizations
+  extractCustomizations,
+  selectTemplate,
+  loadTemplate
 };
 
 
@@ -148,7 +178,14 @@ async function generateWireframe(options = {}) {
   } = options;
 
   try {
-    console.log('Generating wireframe using Claude API...');
+    console.log('Generating wireframe using Ollama API...');
+
+    // Select and load template
+    const templatePath = selectTemplate(issueTitle, issueDescription);
+    const templateSvg = loadTemplate(templatePath);
+    if (templateSvg) {
+      console.log(`Using template: ${path.basename(templatePath)}`);
+    }
 
     // Extract customizations from issue content
     const issueCustomizations = extractCustomizations(issueTitle, issueDescription);
@@ -163,7 +200,8 @@ async function generateWireframe(options = {}) {
     const svgContent = await generateWireframeWithLLM(
       issueTitle || title,
       issueDescription,
-      finalCustomizations
+      finalCustomizations,
+      templateSvg
     );
 
     // Validate SVG output
